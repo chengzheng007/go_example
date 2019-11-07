@@ -6,27 +6,29 @@ import (
 	"time"
 )
 // 功能：限制单位时间内routine的数量，确保所有routine能执行完，有一个超时检测
+// 更准确应该叫：goroutine并发数限制
+// 因为所谓的池，池子里面的资源可复用，如sync.Pool，但这里并没有复用起的routine
 func main() {
 	goroutinePoolAndTimeout()
 }
 
 // 阻塞型channel+waitgroup
-type gorountinePool struct {
+type gorountineConcurrencyControl struct {
 	ch chan struct{}
 	wg *sync.WaitGroup
 }
 
-func NewGorountinePool(cap int) *gorountinePool {
+func NewGorountineConcurrencyControl(cap int) *gorountineConcurrencyControl {
 	if cap < 1 {
 		panic("channel capacity must >= 1")
 	}
-	return &gorountinePool{
+	return &gorountineConcurrencyControl{
 		wg: new(sync.WaitGroup),
 		ch: make(chan struct{}, cap),
 	}
 }
 
-func (p *gorountinePool) Add(num int) {
+func (p *gorountineConcurrencyControl) Add(num int) {
 	if num < 1 {
 		panic("add routine num must >= 1")
 	}
@@ -36,12 +38,12 @@ func (p *gorountinePool) Add(num int) {
 	}
 }
 
-func (p *gorountinePool) Done() {
+func (p *gorountineConcurrencyControl) Done() {
 	<-p.ch
 	p.wg.Done()
 }
 
-func (p *gorountinePool) Wait() {
+func (p *gorountineConcurrencyControl) Wait() {
 	p.wg.Wait()
 }
 
@@ -50,13 +52,13 @@ func goroutinePoolAndTimeout() {
 	// 阻塞channel，接收routine函数的错误
 	errChan := make(chan error)
 
-	pool := NewGorountinePool(3)
+	gcc := NewGorountineConcurrencyControl(3)
 	rnum := 10
 	for i := 1; i <= rnum; i++ {
 		// 如果超过pool容量，会阻塞在此
-		pool.Add(1)
+		gcc.Add(1)
 		go func(id int){
-			defer pool.Done()
+			defer gcc.Done()
 			time.Sleep(2*time.Second)
 			fmt.Printf("exec %dth routine...\n", id)
 			err := someFunc(id)
@@ -67,7 +69,7 @@ func goroutinePoolAndTimeout() {
 	}
 
 	go func() {
-		pool.Wait()
+		gcc.Wait()
 		close(done)
 	}()
 
@@ -81,11 +83,11 @@ func goroutinePoolAndTimeout() {
 		fmt.Println("timeout!")
 	}
 }
-// 缺点：超时并不是对pool中所有的routine时间总和的控制
-// 57行：pool.Add(1)，如果数量达到pool上限(pool.ch已满)，将会阻塞在这里，等待已加入的routine先运行
-// 假设pool容量为3，有10个待运行的routine，每次加入3个就阻塞，等到有运行完的才会加入第4个，等到10个全部加入后
-// 执行到60行的go fun(){pool.Wait()...}以及下面的select，也就是说，这里的timeout监控实际值监控了
-// 最后<=3个routine的超时（或者说最多只监控了pool容量个数的routine的时间）
+// 缺点：超时并不是对gorountineConncurent中所有的routine时间总和的控制
+// 57行：gcc.Add(1)，如果数量达到gcc上限(gcc.ch已满)，将会阻塞在这里，等待已加入的routine先运行
+// 假设gcc容量为3，有10个待运行的routine，每次加入3个就阻塞，等到有运行完的才会加入第4个，等到10个全部加入后
+// 执行到60行的go fun(){gcc.Wait()...}以及下面的select，也就是说，这里的timeout监控实际值监控了
+// 最后<=3个routine的超时（或者说最多只监控了gcc容量个数的routine的时间）
 
 func someFunc(id int) error {
 	//if rand.Intn(10) % 2 == 1 {
