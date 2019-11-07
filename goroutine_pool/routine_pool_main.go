@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 )
-
+// 功能：限制单位时间内routine的数量，确保所有routine能执行完，有一个超时检测
 func main() {
 	goroutinePoolAndTimeout()
 }
@@ -17,8 +17,8 @@ type gorountinePool struct {
 }
 
 func NewGorountinePool(cap int) *gorountinePool {
-	if cap <= 0 {
-		panic("channel capacity must > 0")
+	if cap < 1 {
+		panic("channel capacity must >= 1")
 	}
 	return &gorountinePool{
 		wg: new(sync.WaitGroup),
@@ -27,8 +27,8 @@ func NewGorountinePool(cap int) *gorountinePool {
 }
 
 func (p *gorountinePool) Add(num int) {
-	if num <= 0 {
-		panic("add routine num must > 0")
+	if num < 1 {
+		panic("add routine num must >= 1")
 	}
 	p.wg.Add(num)
 	for i := 0; i < num; i++ {
@@ -77,7 +77,7 @@ func goroutinePoolAndTimeout() {
 		fmt.Printf("get error:%v\n", err)
 	case <-done:
 		fmt.Println("all routine done.")
-	case <-time.After(time.Second):
+	case <-time.After(3*time.Second):
 		fmt.Println("timeout!")
 	}
 }
