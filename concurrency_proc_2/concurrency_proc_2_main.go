@@ -79,7 +79,7 @@ func goroutinePoolAndTimeout() {
 		fmt.Printf("get error:%v\n", err)
 	case <-done:
 		fmt.Println("all routine done.")
-	case <-time.After(3*time.Second):
+	case <-time.After(3*time.Second):  // 这里的时间只对最后剩余的运行的协程的运行时间有效，比如每个协程执行2秒，最后剩一个协程，这里不会超时
 		fmt.Println("timeout!")
 	}
 }
