@@ -19,7 +19,7 @@ func testConcurrencyAndTimeout() {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			time.Sleep(time.Second)
+			time.Sleep(2*time.Second)
 			fmt.Printf("process req %d.\n", idx)
 		}(i)
 	}
@@ -34,9 +34,9 @@ func testConcurrencyAndTimeout() {
 	case <-done:
 		// 正常结束
 		fmt.Println("all concurrent req accomplished.")
-	case <-time.After(time.Second):
+	case <-time.After(2*time.Second):
 		fmt.Println("timeout! we need to break off")
 	}
 	return
 }
-// 缺点：只有超时检测，协程数量不可控，可以一下子add非常多routine（需要一个routine pool），导致系统资源耗尽
+// 缺点：只有超时检测，协程数量不可控，可以一下子add非常多routine（需要一个routine pool），否则可能导致系统资源耗尽
